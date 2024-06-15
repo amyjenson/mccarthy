@@ -154,7 +154,7 @@ class MomentumModel(OptionsManager):
             s11 + s33 - ((s11 + s33) ** 2 - 4 * (s11 * s33 - s13**2)) ** 0.5
         )
 
-        max_eig = Max(eig1, eig2)
+        max_eig = Max(eig1, Max(eig2, fd.Constant(0.0)))
 
         chi = (
             self.alpha_coeff * max_eig
@@ -255,7 +255,7 @@ class MomentumModel(OptionsManager):
             s11 + s33 - ((s11 + s33) ** 2 - 4 * (s11 * s33 - s13**2)) ** 0.5
         )
 
-        max_eig = Max(eig1, eig2)
+        max_eig = Max(eig1, Max(eig2, fd.Constant(0.0)))
 
         chi = fd.Function(P1).interpolate(
             self.alpha_coeff * max_eig
