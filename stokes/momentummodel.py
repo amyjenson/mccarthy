@@ -195,7 +195,7 @@ class MomentumModel(OptionsManager):
         eig1 = 0.5 * (s11 + s33 + ((s11 + s33) ** 2 - 4 * (s11 * s33 - s13**2)) ** 0.5)
         eig2 = 0.5 * (s11 + s33 - ((s11 + s33) ** 2 - 4 * (s11 * s33 - s13**2)) ** 0.5)
 
-        max_eig = Max(eig1, eig2)
+        max_eig = Max(eig1, Max(fd.Constant(0), eig2)
 
         chi = fd.Function(P1).interpolate(
             self.alpha_coeff * max_eig + (1 - self.alpha_coeff) * (3 * dev_sigma2)**0.5
