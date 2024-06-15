@@ -133,12 +133,10 @@ class MomentumModel(OptionsManager):
 
         # define the nonlinear weak form F(u,p;v,q)
         v, q, s = fd.TestFunctions(self._Z)
-        Du2 = (
-            0.5 * fd.inner((1 - d) * D(u), (1 - d) * D(u))
-            + (self.eps * self.Dtyp) ** 2.0
-        )
+        Du2 = 0.5 * fd.inner(D(u), D(u)) + (self.eps * self.Dtyp) ** 2.0
         rr = 1.0 / self.n_glen - 1.0
-        nu = 0.5 * self._B3 * Du2 ** (rr / 2.0)
+        RR = (self.n_glen + 1) / self.n_glen
+        nu = 0.5 * self._B3 * (1 - d) ** RR * Du2 ** (rr / 2.0)
         dev_sigma = 2 * nu * Du2
         dev_sigma2 = 0.5 * fd.inner(dev_sigma, dev_sigma)
         stress = -np.identity(2) * p + dev_sigma
@@ -164,13 +162,13 @@ class MomentumModel(OptionsManager):
         k = self.a1 + self.a2 * (3 * dev_sigma2) ** 0.5
         f = self.B * (chi**self.gamma) / (1 - d) ** k
         F = (
-            fd.inner(self._B3 * Du2 ** (rr / 2.0) * (1 - d) * D(u), D(v))
+            fd.inner(2 * nu * D(u), D(v))
             - p * fd.div(v)
             - fd.div(u) * q
             - d * fd.div(u) * s
             + fd.inner(f, s)
             - fd.inner(f_body, v)
-        ) * fd.dx(degree=5)
+        ) * fd.dx(degree=6)
         if self.Hout >= 1.0:
             if extrudemode:
                 # see bottom page https://www.firedrakeproject.org/extruded-meshes.html
@@ -180,10 +178,12 @@ class MomentumModel(OptionsManager):
 
         # Dirichlet boundary conditions
         noslip = fd.Constant((0.0, 0.0))
+        inflow_d = fd.Constant(0.0)
         inflow_u = self._get_uin(mesh)
         bcs = [
             fd.DirichletBC(self._Z.sub(0), noslip, bdryids["base"]),
             fd.DirichletBC(self._Z.sub(0), inflow_u, bdryids["inflow"]),
+            fd.DirichletBC(self._Z.sub(2), inflow_d, bdryids["inflow"]),
         ]
 
         # solve
@@ -219,12 +219,12 @@ class MomentumModel(OptionsManager):
     # where X = sqrt(|Du|^2 + eps^2 Dtyp^2)
     def effectiveviscosity(self, mesh):
         P1 = fd.FunctionSpace(mesh, "CG", 1)
-        Du2 = (
-            0.5 * fd.inner((1 - self.d) * D(self.u), (1 - self.d) * D(self.u))
-            + (self.eps * self.Dtyp) ** 2.0
-        )
+        Du2 = 0.5 * fd.inner(D(self.u), D(self.u)) + (self.eps * self.Dtyp) ** 2.0
         rr = 1.0 / self.n_glen - 1.0
-        nu = fd.Function(P1).interpolate(0.5 * self._B3 * Du2 ** (rr / 2.0))
+        RR = (self.n_glen + 1) / self.n_glen
+        nu = fd.Function(P1).interpolate(
+            0.5 * self._B3 * (1 - self.d) ** RR * Du2 ** (rr / 2.0)
+        )
         nu.rename("effective viscosity")
         return nu
 
@@ -233,7 +233,8 @@ class MomentumModel(OptionsManager):
         P1 = fd.FunctionSpace(mesh, "CG", 1)
         Du2 = 0.5 * fd.inner(D(self.u), D(self.u)) + (self.eps * self.Dtyp) ** 2.0
         rr = 1.0 / self.n_glen - 1.0
-        nu = 0.5 * self._B3 * Du2 ** (rr / 2.0)
+        RR = (self.n_glen + 1) / self.n_glen
+        nu = 0.5 * self._B3 * (1 - self.d) ** RR * Du2 ** (rr / 2.0)
 
         # deviatoric tensor from velocity U
         dev_sigma = 2 * nu * Du2
