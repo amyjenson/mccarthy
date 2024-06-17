@@ -111,11 +111,14 @@ class MomentumModel(OptionsManager):
             # if there is an outflow boundary then it is nonhomogeneous Neumann
             # and part of the weak form; we apply hydrostatic normal force
             _, z = fd.SpatialCoordinate(mesh)
-            # outflow_sigma = fd.as_vector( \
-            #    [- rhog * np.cos(self.alpha) * (self.Hout - z),
-            #    rhog * np.sin(self.alpha) * (self.Hout - z)])
+            outflow_sigma = fd.as_vector(
+                [
+                    -rhog * np.cos(self.alpha) * (self.Hout - z),
+                    rhog * np.sin(self.alpha) * (self.Hout - z),
+                ]
+            )
             # Replace outflow boundary stresses with zeros.
-            outflow_sigma = fd.as_vector([fd.Constant(0), fd.Constant(0)])
+            # outflow_sigma = fd.as_vector([fd.Constant(0), fd.Constant(0)])
 
         # create, use old, or prolong coarse solution as initial iterate
         if upold:
@@ -130,6 +133,8 @@ class MomentumModel(OptionsManager):
         self.u.rename("velocity")
         self.p.rename("pressure")
         self.d.rename("damage")
+
+        # d = d / Max(1, np.amax(d))
 
         # define the nonlinear weak form F(u,p;v,q)
         v, q, s = fd.TestFunctions(self._Z)
@@ -161,6 +166,7 @@ class MomentumModel(OptionsManager):
 
         k = self.a1 + self.a2 * (3 * dev_sigma2) ** 0.5
         f = self.B * (chi**self.gamma) / (1 - d) ** k
+        f = fd.Constant(0)
         F = (
             fd.inner(2 * nu * D(u), D(v))
             - p * fd.div(v)
